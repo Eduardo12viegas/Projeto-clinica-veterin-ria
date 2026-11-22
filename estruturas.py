@@ -1,3 +1,5 @@
+"""Estruturas de dados genéricas, feitas à mão (sem list/dict/deque guardando dados)."""
+
 class No:
     """Nó usado por Lista e Fila: guarda um dado e aponta para o próximo nó."""
 
@@ -109,3 +111,43 @@ class Fila:
         while atual is not None:
             yield atual.dado
             atual = atual.proximo
+
+
+class NoArvore:
+    """Nó de árvore geral: guarda um dado qualquer e uma Lista de filhos (0 a N)."""
+
+    def __init__(self, dado):
+        self.dado = dado
+        self.filhos = Lista()
+
+    def adicionar_filho(self, filho):
+        self.filhos.adicionar(filho)
+        return filho
+
+
+class Arvore:
+    """Árvore geral (não é binária e não é de busca).
+
+    pre_ordem e buscar visitam todos os nós: O(n).
+    """
+
+    def __init__(self, raiz):
+        self.raiz = raiz
+
+    def pre_ordem(self):
+        """Percurso em profundidade (pré-ordem): primeiro o nó, depois os filhos.
+        Devolve pares (dado, nivel); o nível serve para indentar na hora de exibir.
+        """
+        return self._pre_ordem(self.raiz, 0)
+
+    def _pre_ordem(self, no, nivel):
+        yield no.dado, nivel
+        for filho in no.filhos:
+            yield from self._pre_ordem(filho, nivel + 1)
+
+    def buscar(self, criterio):
+        """Devolve o primeiro dado (em pré-ordem) que satisfaz criterio(dado), ou None."""
+        for dado, _ in self.pre_ordem():
+            if criterio(dado):
+                return dado
+        return None
