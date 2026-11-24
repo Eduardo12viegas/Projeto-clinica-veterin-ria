@@ -1,4 +1,9 @@
-"""Estruturas de dados genéricas, feitas à mão (sem list/dict/deque guardando dados)."""
+"""Estruturas de dados genéricas, feitas à mão (sem list/dict/deque guardando dados).
+
+Aqui ficam só as estruturas, que não conhecem nada da clínica.
+Por enquanto: Lista, Fila e Árvore.
+"""
+
 
 class No:
     """Nó usado por Lista e Fila: guarda um dado e aponta para o próximo nó."""
@@ -68,7 +73,7 @@ class Lista:
 class Fila:
     """Fila (FIFO) encadeada: o primeiro a entrar é o primeiro a sair.
 
-    enfileirar / desenfileirar / primeiro: O(1)
+    enfileirar / desenfileirar / primeiro / ultimo: O(1)  |  filtrar: O(n)
     """
 
     def __init__(self):
@@ -99,6 +104,24 @@ class Fila:
     def primeiro(self):
         """Espia o primeiro da fila sem remover (ou None)."""
         return None if self.inicio is None else self.inicio.dado
+
+    def ultimo(self):
+        """Espia o último da fila (o que entrou por último) sem remover (ou None)."""
+        return None if self.fim is None else self.fim.dado
+
+    def filtrar(self, manter):
+        """Mantém na fila só quem satisfaz manter(dado), preservando a ordem de chegada.
+        Devolve uma Lista com quem foi removido.
+        Desenfileira todos e enfileira de volta só os que ficam: O(n).
+        """
+        removidos = Lista()
+        for _ in range(self.tamanho):
+            dado = self.desenfileirar()
+            if manter(dado):
+                self.enfileirar(dado)
+            else:
+                removidos.adicionar(dado)
+        return removidos
 
     def vazia(self):
         return self.tamanho == 0
