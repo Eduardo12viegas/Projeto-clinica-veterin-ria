@@ -9,11 +9,30 @@ consultório, diagnóstico, medicamentos e procedimentos, alta, fechamento do pr
 python main.py
 ```
 
+Ao abrir, escolha o perfil: **cliente** (entra com o CPF) ou **funcionário** (pede senha; a
+senha padrão é `vet123` e fica em `contexto.py`, constante `SENHA_FUNCIONARIO`).
+
 Sem bibliotecas externas. Os dados ficam só na memória: a cada execução o programa carrega
 tutores, animais e estoque de exemplo (inclui um lote de vacina vencido para mostrar as perdas).
 
+## Perfis de acesso
+
+| | Cliente (`cliente.py`) | Funcionário (`funcionario.py`) |
+|---|---|---|
+| Cadastrar tutor / animal | só o próprio CPF | qualquer tutor |
+| Solicitar atendimento | só para os seus animais | qualquer animal |
+| Fila de espera | só a posição dos seus animais | fila completa e consultórios |
+| Buscar / listar / remover tutores e animais | não | sim |
+| Chamar animal, prontuário, diagnóstico, alta, pagamento | não | sim |
+| Estoque e relatórios | não | sim |
+
+Cliente e funcionário rodam no mesmo programa (`main.py`) e compartilham a mesma `Clinica`
+(`contexto.py`): como os dados ficam só na memória, o pedido feito pelo cliente aparece na fila
+do funcionário.
+
 Para simular um atendimento completo pelo menu:
-1. **Atendimento > Solicitar atendimento** (normal e emergência) e **Ver fila**.
+0. Como **cliente**: entre com o CPF (ex.: `111.111.111-11`) e use **Solicitar atendimento**.
+1. Como **funcionário**: **Atendimento > Ver fila** (e também Solicitar atendimento, normal e emergência).
 2. **Atendimento > Chamar próximo animal** (abre o prontuário).
 3. **Prontuários > Gerenciar um prontuário**: marcar itens como Alterado na árvore.
 4. Incluir medicamentos e procedimentos.
@@ -30,7 +49,11 @@ Para simular um atendimento completo pelo menu:
 | `prontuario.py` | `Prontuario`, `ItemMedicamento`, `Procedimento` |
 | `pagamento.py` | `Pagamento`, `Consumo` |
 | `clinica.py` | classe `Clinica`: junta tudo e concentra as regras (tutores, animais, fechamento) |
-| `cli.py`, `main.py` | menus de terminal (só perguntam e mostram; as regras ficam na `Clinica`) |
+| `cli.py` | funções de terminal: menus, leitura validada e formatação |
+| `contexto.py` | a `Clinica` compartilhada, `seguro()`, senha do funcionário e dados de exemplo |
+| `cliente.py` | menu do cliente (só pergunta e mostra; as regras ficam na `Clinica`) |
+| `funcionario.py` | menus do funcionário: tutores, atendimento, prontuários, estoque, relatórios |
+| `main.py` | ponto de entrada: escolha do perfil |
 
 Estruturas genéricas ficam de um lado (`estruturas.py`) e as regras da clínica do outro. Nenhuma
 estrutura nativa do Python (list, dict, deque...) guarda os dados do problema.
