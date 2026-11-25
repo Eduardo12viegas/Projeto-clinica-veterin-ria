@@ -1,11 +1,15 @@
+"""Atendimento: espera dos animais e consultórios.
+
+Combinação de estruturas: Fila + Fila.
+Existe uma fila de emergência e uma fila normal. O próximo a ser atendido vem da fila de
+emergência; se ela estiver vazia, vem da normal. Cada fila mantém a ordem de chegada.
+"""
 from datetime import datetime
 
 from estruturas import Fila, Lista
 
 
 class Solicitacao:
-    """Um animal esperando atendimento."""
-
 
     def __init__(self, nome_animal, nome_tutor, cpf, queixa, emergencia=False):
         self.nome_animal = nome_animal

@@ -1,12 +1,6 @@
-"""Estruturas de dados genéricas, feitas à mão (sem list/dict/deque guardando dados).
-
-Aqui ficam só as estruturas, que não conhecem nada da clínica.
-Por enquanto: Lista, Fila e Árvore.
-"""
-
+"""Estruturas de dados genéricas, feitas à mão (sem list/dict/deque guardando dados)."""
 
 class No:
-    """Nó usado por Lista e Fila: guarda um dado e aponta para o próximo nó."""
 
     def __init__(self, dado):
         self.dado = dado
@@ -14,10 +8,7 @@ class No:
 
 
 class Lista:
-    """Lista encadeada.
-
-    adicionar no fim: O(1)  |  buscar / obter / remover: O(n)
-    """
+    """Lista encadeada."""
 
     def __init__(self):
         self.inicio = None
@@ -34,14 +25,12 @@ class Lista:
         self.tamanho += 1
 
     def buscar(self, criterio):
-        """Devolve o primeiro dado para o qual criterio(dado) é True (ou None)."""
         for dado in self:
             if criterio(dado):
                 return dado
         return None
 
     def remover(self, criterio):
-        """Remove e devolve o primeiro dado que satisfaz o critério (ou None)."""
         anterior, atual = None, self.inicio
         while atual is not None:
             if criterio(atual.dado):
@@ -71,10 +60,6 @@ class Lista:
 
 
 class Fila:
-    """Fila (FIFO) encadeada: o primeiro a entrar é o primeiro a sair.
-
-    enfileirar / desenfileirar / primeiro / ultimo: O(1)  |  filtrar: O(n)
-    """
 
     def __init__(self):
         self.inicio = None
@@ -91,7 +76,7 @@ class Fila:
         self.tamanho += 1
 
     def desenfileirar(self):
-        """Tira e devolve o primeiro da fila (ou None se estiver vazia)."""
+       
         if self.inicio is None:
             return None
         dado = self.inicio.dado
@@ -110,10 +95,6 @@ class Fila:
         return None if self.fim is None else self.fim.dado
 
     def filtrar(self, manter):
-        """Mantém na fila só quem satisfaz manter(dado), preservando a ordem de chegada.
-        Devolve uma Lista com quem foi removido.
-        Desenfileira todos e enfileira de volta só os que ficam: O(n).
-        """
         removidos = Lista()
         for _ in range(self.tamanho):
             dado = self.desenfileirar()
@@ -137,7 +118,6 @@ class Fila:
 
 
 class NoArvore:
-    """Nó de árvore geral: guarda um dado qualquer e uma Lista de filhos (0 a N)."""
 
     def __init__(self, dado):
         self.dado = dado
@@ -149,10 +129,6 @@ class NoArvore:
 
 
 class Arvore:
-    """Árvore geral (não é binária e não é de busca).
-
-    pre_ordem e buscar visitam todos os nós: O(n).
-    """
 
     def __init__(self, raiz):
         self.raiz = raiz

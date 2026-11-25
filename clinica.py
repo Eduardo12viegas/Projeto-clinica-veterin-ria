@@ -1,5 +1,17 @@
+"""Regras da clínica veterinária.
+
+Reúne as regras de tutores e animais, atendimento, prontuário, estoque e pagamento.
+Quem usa a Clinica (menu, interface) deve tratar ValueError, que é como ela avisa
+que uma regra foi violada.
+"""
+from datetime import datetime
+
+import diagnostico
 from atendimento import ControleAtendimento, Solicitacao
+from estoque import Estoque
 from estruturas import Lista
+from pagamento import FORMAS, Consumo, Pagamento
+from prontuario import ItemMedicamento, Procedimento, Prontuario
 
 
 class Animal:
@@ -22,7 +34,11 @@ class Clinica:
     def __init__(self, num_consultorios=2):
         self.tutores = Lista()      # Lista de Tutor (cada um com sua Lista de Animal)
         self.atendimento = ControleAtendimento(num_consultorios)
-        # Próximos passos: estoque, prontuário, pagamento...
+        self.estoque = Estoque()
+        self.prontuarios = Lista()      # prontuários abertos
+        self.pagamentos = Lista()       # histórico de pagamentos
+        self.consumos = Lista()         # histórico: qual tutor/animal consumiu o quê
+        self._proximo_numero = 1        # número do próximo prontuário
 
     # ---------------------------------------------------------------- auxiliares
     @staticmethod
@@ -118,46 +134,153 @@ class Clinica:
         return solicitacao
 
 
-# Teste rápido: rode `python clinica.py` para ver o que já funciona.
+    # ---------------------------------------------------------------- prontuário
+    def chamar_proximo(self, veterinario):
+        """Chama o próximo animal da fila para um consultório livre e abre o prontuário."""
+        if not veterinario.strip():
+            raise ValueError("Informe o veterinário responsável.")
+        consultorio, solicitacao = self.atendimento.chamar_proximo()
+        prontuario = Prontuario(self._proximo_numero, solicitacao.nome_animal,
+                                solicitacao.nome_tutor, solicitacao.cpf,
+                                veterinario.strip(), consultorio.numero, solicitacao.queixa)
+        self._proximo_numero += 1
+        self.prontuarios.adicionar(prontuario)
+        return prontuario
+
+    def buscar_prontuario(self, numero):
+        return self.prontuarios.buscar(lambda p: p.numero == numero)
+
+    def _prontuario_aberto(self, numero):
+        prontuario = self.buscar_prontuario(numero)
+        if prontuario is None:
+            raise ValueError("Prontuário aberto não encontrado.")
+        return prontuario
+
+    def marcar_alterado(self, numero, nome_componente):
+        prontuario = self._prontuario_aberto(numero)
+        return diagnostico.marcar_alterado(prontuario.diagnostico, nome_componente)
+
+    def adicionar_medicamento(self, numero, codigo, quantidade):
+        """Inclui o medicamento no prontuário (o estoque só é baixado no fechamento)."""
+        prontuario = self._prontuario_aberto(numero)
+        if quantidade <= 0:
+            raise ValueError("A quantidade deve ser maior que zero.")
+        produto = self.estoque.buscar_produto(codigo)
+        if produto is None:
+            raise ValueError("Produto não encontrado no estoque.")
+        item = prontuario.medicamentos.buscar(lambda i: i.codigo == produto.codigo)
+        ja_incluido = item.quantidade if item is not None else 0
+        if self.estoque.quantidade_disponivel(produto.codigo) < ja_incluido + quantidade:
+            raise ValueError(f"Estoque insuficiente de {produto.nome}.")
+        if item is None:
+            prontuario.medicamentos.adicionar(
+                ItemMedicamento(produto.codigo, produto.nome, quantidade))
+        else:
+            item.quantidade += quantidade
+
+    def remover_medicamento(self, numero, codigo):
+        prontuario = self._prontuario_aberto(numero)
+        codigo = codigo.strip().upper()
+        if prontuario.medicamentos.remover(lambda i: i.codigo == codigo) is None:
+            raise ValueError("Esse medicamento não está no prontuário.")
+
+    def adicionar_procedimento(self, numero, nome, valor):
+        prontuario = self._prontuario_aberto(numero)
+        if not nome.strip():
+            raise ValueError("Informe o nome do procedimento.")
+        if valor < 0:
+            raise ValueError("O valor não pode ser negativo.")
+        prontuario.procedimentos.adicionar(Procedimento(nome.strip(), valor))
+
+    def remover_procedimento(self, numero, nome):
+        prontuario = self._prontuario_aberto(numero)
+        removido = prontuario.procedimentos.remover(lambda p: self._igual(p.nome, nome))
+        if removido is None:
+            raise ValueError("Esse procedimento não está no prontuário.")
+
+    def dar_alta(self, numero):
+        self._prontuario_aberto(numero).alta = True
+
+    def fechar_prontuario(self, numero, forma, parcelas=1):
+        """Fecha o prontuário: baixa o estoque (lote mais antigo primeiro), registra o
+        consumo de cada medicamento, registra o pagamento e libera o consultório.
+        Devolve (pagamento, próximo animal da fila ou None)."""
+        prontuario = self._prontuario_aberto(numero)
+        if not prontuario.alta:
+            raise ValueError("O prontuário só pode ser fechado depois da alta do animal.")
+        forma = forma.strip().upper()
+        if forma not in FORMAS:
+            raise ValueError("Forma de pagamento inválida (PIX, CARTAO ou DINHEIRO).")
+        if forma != "CARTAO":
+            parcelas = 1
+        elif parcelas < 1:
+            raise ValueError("Número de parcelas inválido.")
+
+        # 1) confere o estoque de todos os itens antes de mexer em qualquer coisa
+        for item in prontuario.medicamentos:
+            if self.estoque.quantidade_disponivel(item.codigo) < item.quantidade:
+                raise ValueError(f"Estoque insuficiente de {item.nome}.")
+
+        # 2) baixa o estoque e registra quem consumiu o quê
+        agora = datetime.now()
+        valor_medicamentos = 0
+        for item in prontuario.medicamentos:
+            valor = self.estoque.baixar(item.codigo, item.quantidade)
+            valor_medicamentos += valor
+            self.consumos.adicionar(Consumo(prontuario.cpf, prontuario.nome_tutor,
+                                            prontuario.nome_animal, prontuario.numero,
+                                            item.codigo, item.nome, item.quantidade,
+                                            valor, agora))
+
+        # 3) registra o pagamento
+        pagamento = Pagamento(prontuario.nome_tutor, prontuario.numero, forma, parcelas,
+                              valor_medicamentos, prontuario.valor_procedimentos(), agora)
+        self.pagamentos.adicionar(pagamento)
+
+        # 4) encerra o prontuário e libera o consultório (indicando o próximo da fila)
+        self.prontuarios.remover(lambda p: p is prontuario)
+        proximo = self.atendimento.liberar_consultorio(prontuario.consultorio)
+        return pagamento, proximo
+
+
+# Teste rápido: rode `python clinica.py` para simular um atendimento completo.
 if __name__ == "__main__":
-    clinica = Clinica()
+    from datetime import date, timedelta
+
+    clinica = Clinica(num_consultorios=1)
     clinica.cadastrar_tutor("Ana Souza", "111.111.111-11", "19 99999-0001")
     clinica.cadastrar_animal("11111111111", "Rex", "Cachorro", "Labrador", 4)
-    clinica.cadastrar_animal("11111111111", "Mimi", "Gato", "Siamês", 2)
-
-    tutor, animal = clinica.buscar_animal("111.111.111-11", "rex")
-    print(f"Achei: {animal.nome} ({animal.especie}, {animal.raca}, {animal.idade} anos) "
-          f"- tutor {tutor.nome}")
-
-    for erro in (lambda: clinica.cadastrar_animal("11111111111", "REX", "Cachorro", "SRD", 1),
-                 lambda: clinica.cadastrar_tutor("Fulano", "123", "0"),
-                 lambda: clinica.remover_animal("11111111111", "Totó")):
-        try:
-            erro()
-        except ValueError as e:
-            print("Erro esperado:", e)
-
-    # atendimento: a emergência passa na frente de quem chegou antes
     clinica.cadastrar_tutor("Bruno Lima", "222.222.222-22", "19 98888-0002")
     clinica.cadastrar_animal("22222222222", "Thor", "Cachorro", "Pitbull", 6)
+    clinica.estoque.registrar_compra("Vermífugo", "VER01", "VetPharma", 10.0, 25.0, 10,
+                                     date.today() + timedelta(days=200))
+
+    # 1) chegada: o Rex chega primeiro, mas o Thor é emergência
     clinica.solicitar_atendimento("11111111111", "Rex", "vômito")
     clinica.solicitar_atendimento("22222222222", "Thor", "atropelamento", emergencia=True)
-    print("Ordem de chamada:", [x.nome_animal for x in clinica.atendimento.fila_em_ordem()])
-    try:
-        clinica.remover_animal("22222222222", "Thor")
-    except ValueError as e:
-        print("Erro esperado:", e)
 
-    consultorio, atual = clinica.atendimento.chamar_proximo()
-    print(f"Consultório {consultorio.numero} chamou {atual.nome_animal}")
-    proximo = clinica.atendimento.liberar_consultorio(consultorio.numero)
-    print("Próximo a ser atendido:", proximo.nome_animal)
-    clinica.atendimento.chamar_proximo()          # Rex ocupa um consultório
+    # 2) chamada do próximo e abertura do prontuário
+    prontuario = clinica.chamar_proximo("Dra. Paula")
+    print(f"Prontuário {prontuario.numero} aberto para {prontuario.nome_animal} "
+          f"no consultório {prontuario.consultorio}")
 
-    clinica.remover_animal("11111111111", "Mimi")
-    print("Animais de Ana depois de remover a Mimi:",
-          [a.nome for a in clinica.buscar_tutor("11111111111").animais])
+    # 3) diagnóstico
+    clinica.marcar_alterado(prontuario.numero, "Pulmões")
+    diagnostico.exibir(prontuario.diagnostico)
+
+    # 4) medicamentos e procedimentos
+    clinica.adicionar_medicamento(prontuario.numero, "VER01", 2)
+    clinica.adicionar_procedimento(prontuario.numero, "Consulta de emergência", 120.0)
+
+    # 5) alta, fechamento e pagamento
     try:
-        clinica.remover_tutor("11111111111")      # Rex está em atendimento
-    except ValueError as e:
-        print("Erro esperado:", e)
+        clinica.fechar_prontuario(prontuario.numero, "PIX")
+    except ValueError as erro:
+        print("Erro esperado:", erro)
+    clinica.dar_alta(prontuario.numero)
+    pagamento, proximo = clinica.fechar_prontuario(prontuario.numero, "cartao", 3)
+    print(f"Pago: R$ {pagamento.valor_total:.2f} ({pagamento.forma}, {pagamento.parcelas}x)")
+    print("Próximo animal a ser atendido:", proximo.nome_animal)
+    for c in clinica.consumos:
+        print(f"Consumo: {c.quantidade}x {c.produto} - {c.nome_animal} (tutor {c.nome_tutor})")
+    print("Estoque de vermífugo:", clinica.estoque.buscar_produto("VER01").quantidade_total())

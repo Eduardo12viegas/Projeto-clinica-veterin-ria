@@ -1,5 +1,8 @@
-"""Diagnóstico: árvore de sistemas do animal."""
+"""Diagnóstico: árvore de sistemas do animal.
 
+A estrutura Arvore (em estruturas.py) é genérica. Aqui ficam os dados da clínica:
+o que cada nó guarda (Componente) e a árvore pré-definida.
+"""
 from estruturas import Arvore, NoArvore
 
 SAUDAVEL = "Saudável"
@@ -22,8 +25,6 @@ class Componente:
 
 
 def criar_arvore_animal():
-    """Monta a árvore pré-definida (ela não é editada depois).
-    Cada atendimento deve usar a sua própria cópia, chamando esta função de novo."""
     raiz = NoArvore(Componente("Animal"))
 
     digestorio = raiz.adicionar_filho(NoArvore(Componente("Sistema digestório")))

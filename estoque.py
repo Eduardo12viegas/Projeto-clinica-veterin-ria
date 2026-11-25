@@ -1,10 +1,5 @@
 """Estoque de medicamentos, vacinas e materiais.
-
-Combinação de estruturas: Lista + Fila.
-O estoque é uma Lista de produtos e cada produto tem uma Fila de lotes. Como os lotes
-entram na fila por ordem de compra, o primeiro da fila é sempre o mais antigo, e é dele
-que a saída consome primeiro (FIFO).
-"""
+Combinação de estruturas: Lista + Fila."""
 from datetime import date
 
 from estruturas import Fila, Lista
@@ -99,11 +94,8 @@ class Estoque:
     # --------------------------------------------------------------------- saídas
     def baixar(self, codigo, quantidade, hoje=None):
         """Dá baixa consumindo primeiro o lote mais antigo, depois o seguinte, e assim
-        por diante. Devolve o valor de venda do que saiu (será usado no prontuário).
+        por diante. Devolve o valor de venda do que saiu (será usado no prontuário)."""
 
-        Percorre a lista até o produto (O(n)) e depois só mexe no começo da fila: cada
-        lote consumido é um desenfileirar O(1).
-        """
         if quantidade <= 0:
             raise ValueError("A quantidade deve ser maior que zero.")
         self.descartar_vencidos(hoje)       # vencido nunca pode ser usado
@@ -142,6 +134,11 @@ class Estoque:
             if lote is None:
                 raise ValueError("Não há lote para receber o ajuste; registre uma compra.")
             lote.quantidade += diferenca
+
+    def quantidade_disponivel(self, codigo, hoje=None):
+        """Quantidade total do produto, depois de descartar os lotes vencidos."""
+        self.descartar_vencidos(hoje)
+        return self._produto_ou_erro(codigo).quantidade_total()
 
     def alertas(self, hoje=None):
         """Produtos cuja quantidade total (sem os vencidos) está abaixo do mínimo."""
