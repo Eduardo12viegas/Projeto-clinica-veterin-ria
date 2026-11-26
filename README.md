@@ -111,3 +111,7 @@ estrutura nativa do Python (list, dict, deque...) guarda os dados do problema.
   do consultório, com a indicação do próximo animal da fila.
 - Lotes vencidos são descartados e registrados como perda; existe alerta de estoque mínimo e
   ajuste de inventário.
+
+
+  ## Link do vídeo da apresentação 
+- https://youtu.be/bexllIWoEH4 
